@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 .DS_Store
 .venv/
+# copia locale del modello per lo sviluppo e appunti di sviluppo (non pubblicati)
+/models/
+SVILUPPO.md
