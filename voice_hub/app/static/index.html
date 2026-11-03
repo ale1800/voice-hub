@@ -1,0 +1,833 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voice Hub</title>
+<style>
+:root {
+  --bg: #f4f5f7; --card: #ffffff; --text: #1c1f24; --muted: #6b7280; --line: #e3e5e9;
+  --accent: #03a9f4; --accent-text: #ffffff; --ok: #2e9d58; --warn: #c77700; --bad: #d63b3b;
+  --chip: #eef1f5;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111317; --card: #1c1f25; --text: #e7e9ee; --muted: #9aa1ad; --line: #2c3038;
+    --accent: #29b6f6; --accent-text: #0b1117; --ok: #4cc27a; --warn: #f0a63a; --bad: #f06a6a;
+    --chip: #262a32;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { padding: 16px 16px 0; max-width: 1000px; margin: 0 auto; }
+h1 { font-size: 22px; margin: 0 0 4px; font-weight: 600; }
+.sub { color: var(--muted); font-size: 13px; }
+nav { display: flex; gap: 4px; margin-top: 14px; border-bottom: 1px solid var(--line); }
+nav button { background: none; border: 0; color: var(--muted); padding: 10px 14px; font: inherit;
+  cursor: pointer; border-bottom: 2px solid transparent; }
+nav button.on { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+main { padding: 16px; max-width: 1000px; margin: 0 auto; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+  margin-bottom: 12px; }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.grow { flex: 1; min-width: 0; }
+.name { font-weight: 600; font-size: 16px; }
+.muted { color: var(--muted); font-size: 13px; }
+.chip { display: inline-block; padding: 2px 9px; border-radius: 999px; background: var(--chip); font-size: 12px; }
+.chip.ok { color: var(--ok); } .chip.warn { color: var(--warn); } .chip.bad { color: var(--bad); }
+.btn { background: var(--chip); color: var(--text); border: 0; border-radius: 8px; padding: 7px 12px;
+  font: inherit; font-size: 14px; cursor: pointer; }
+.btn.primary { background: var(--accent); color: var(--accent-text); font-weight: 600; }
+.btn.danger { color: var(--bad); }
+.btn:disabled { opacity: .5; cursor: default; }
+.icon { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 16px; padding: 4px 6px; }
+.groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px 20px;
+  margin-top: 14px; font-size: 13px; }
+.gtitle { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted);
+  margin-bottom: 4px; }
+.stat { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px dashed var(--line); padding: 3px 0; }
+.stat span:first-child { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stat span:last-child { white-space: nowrap; font-variant-numeric: tabular-nums; }
+details summary { cursor: pointer; color: var(--muted); font-size: 13px; margin-top: 8px; }
+.cmd { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 12px; align-items: center;
+  padding: 10px 0; border-bottom: 1px solid var(--line); }
+.cmd:last-child { border-bottom: 0; }
+.cmd .actions { justify-content: flex-end; gap: 6px; min-width: 0; }
+.cmd .text { font-weight: 500; overflow-wrap: anywhere; }
+.play { width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--chip); color: var(--text);
+  cursor: pointer; font-size: 13px; }
+.play:disabled { opacity: .35; cursor: default; }
+input[type=text], select { background: var(--bg); color: var(--text); border: 1px solid var(--line);
+  border-radius: 8px; padding: 7px 10px; font: inherit; }
+dialog { border: 1px solid var(--line); border-radius: 14px; background: var(--card); color: var(--text);
+  width: min(640px, calc(100vw - 32px)); padding: 0; }
+dialog::backdrop { background: rgba(0,0,0,.45); }
+dialog .head { padding: 16px; border-bottom: 1px solid var(--line); }
+dialog .body { padding: 8px 16px; max-height: 55vh; overflow: auto; }
+dialog .foot { padding: 12px 16px; border-top: 1px solid var(--line); display: flex; gap: 8px; justify-content: flex-end; }
+.pick { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.empty { color: var(--muted); text-align: center; padding: 28px 8px; }
+.guide { border-color: var(--accent); }
+.bar { height: 6px; background: var(--chip); border-radius: 3px; overflow: hidden; margin: 10px 0 14px; }
+.bar div { height: 100%; background: var(--accent); }
+.say { font-size: 28px; font-weight: 650; line-height: 1.25; margin: 8px 0 8px; transition: color .2s; }
+.say.ok, .n.ok { color: var(--ok); }
+.counter { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.counter span { font-size: 18px; color: var(--muted); font-weight: 500; }
+.hint { color: var(--muted); }
+.reject { color: var(--warn); margin-top: 8px; font-size: 14px; }
+.wait { color: var(--muted); font-size: 13px; margin-top: 10px; }
+.wait::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px;
+  background: var(--muted); }
+.wait.live { color: var(--accent); }
+.wait.live::before { background: var(--accent); animation: pulse 1s infinite; }
+@keyframes pulse { 50% { opacity: .2; } }
+.steps { margin-top: 14px; }
+.step { display: grid; grid-template-columns: 26px auto minmax(0, 1fr) auto; gap: 10px; align-items: center;
+  padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.step:last-child { border-bottom: 0; }
+.step .n { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.step.cur { font-weight: 600; }
+.step .heard { color: var(--muted); font-size: 12px; font-weight: 400; }
+.banner { background: var(--card); border: 1px solid var(--accent); border-radius: 10px; padding: 8px 12px;
+  margin-bottom: 12px; font-size: 14px; cursor: pointer; }
+.note { background: var(--chip); border-radius: 10px; padding: 10px 12px; font-size: 13px; color: var(--muted); }
+.devhead { cursor: pointer; user-select: none; }
+.chev { color: var(--muted); width: 1em; display: inline-block; }
+.btn.call { background: var(--ok); color: #fff; font-weight: 600; padding: 4px 12px; font-size: 13px; }
+@media (max-width: 560px) {
+  .cmd { grid-template-columns: auto minmax(0, 1fr); }
+  .cmd .actions { grid-column: 1 / -1; justify-content: flex-end; }
+}
+
+/* LED ring editor (LocalDot) */
+.ringwrap { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start; }
+.ringsvg { width: 300px; max-width: 100%; height: auto; flex: 0 0 auto; touch-action: manipulation; }
+.ringsvg .led { cursor: pointer; stroke: transparent; stroke-width: 3; }
+.ringsvg .led.sel { stroke: var(--accent); }
+.ringside { flex: 1; min-width: 240px; display: grid; gap: 12px; }
+.occs { display: flex; gap: 6px; flex-wrap: wrap; }
+.occs .btn.on, .devs .btn.on { background: var(--accent); color: var(--accent-text); }
+.devs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.swatches { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.swatch { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--line); cursor: pointer; padding: 0; }
+.ringsvg .spin { transform-origin: 160px 160px; animation: ringspin 1.8s linear infinite; }
+.ringsvg .breathe { animation: ringbreathe 1.5s ease-in-out infinite; }
+@keyframes ringspin { to { transform: rotate(360deg); } }
+@keyframes ringbreathe { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .ringsvg .spin, .ringsvg .breathe { animation: none; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Voice Hub</h1>
+  <div class="sub" id="sub">Loading…</div>
+  <nav>
+    <button data-tab="devices" class="on">Satellites</button>
+    <button data-tab="people">People</button>
+    <button data-tab="commands">Commands</button>
+    <button data-tab="wake">Wake word</button>
+    <button data-tab="agent">Agent</button>
+    <button data-tab="ring">LED ring</button>
+  </nav>
+</header>
+<main id="main"></main>
+
+<dialog id="start">
+  <div class="head">
+    <div class="name" id="startTitle">Add person</div>
+    <div class="muted" style="margin-top:4px">Voice Hub shows 12 short questions, one at a time. Say the wake word
+      and the question to the satellite; each answer becomes a voice sample. About 5 minutes.</div>
+  </div>
+  <div class="body">
+    <label class="muted" for="startName">Name</label>
+    <input type="text" id="startName" maxlength="40" style="width:100%;margin:4px 0 12px">
+    <label class="muted" for="startDev">Satellite</label>
+    <select id="startDev" style="width:100%;margin-top:4px"></select>
+    <div class="muted" style="margin:12px 0 4px" id="pickLink"></div>
+  </div>
+  <div class="foot">
+    <button class="btn" onclick="$('#start').close()">Cancel</button>
+    <button class="btn primary" id="startGo">Start</button>
+  </div>
+</dialog>
+
+<dialog id="dlg">
+  <div class="head">
+    <div class="name" id="dlgTitle">Add person</div>
+    <div class="muted" style="margin-top:4px">Pick commands spoken by this person only (10–15 is best). Listen before you pick.</div>
+    <div class="row" style="margin-top:10px">
+      <input type="text" id="dlgName" placeholder="Name" maxlength="40" class="grow" list="peopleNames">
+      <datalist id="peopleNames"></datalist>
+    </div>
+  </div>
+  <div class="body" id="dlgList"></div>
+  <div class="foot">
+    <span class="muted grow" id="dlgCount"></span>
+    <button class="btn" id="dlgCancel">Cancel</button>
+    <button class="btn primary" id="dlgSave">Save</button>
+  </div>
+</dialog>
+
+<input type="file" id="wakeFile" accept=".onnx" hidden onchange="uploadWakeModel(this)">
+<input type="file" id="onDeviceFile" accept=".tflite,.json" multiple hidden onchange="uploadOnDevice(this)">
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+let data = null, tab = "devices", audio = null, playing = null;
+const TABS = ["devices", "people", "commands", "wake", "agent", "ring"];
+try { const t = localStorage.getItem("vh-tab"); if (TABS.includes(t)) tab = t; } catch (e) {}
+if (TABS.includes(location.hash.slice(1))) tab = location.hash.slice(1);
+// Satellite cards the user opened (closed by default: name, online, call, state).
+let opened = new Set();
+try { opened = new Set(JSON.parse(localStorage.getItem("vh-open") || "[]")); } catch (e) {}
+function toggleDev(id) {
+  opened.has(id) ? opened.delete(id) : opened.add(id);
+  try { localStorage.setItem("vh-open", JSON.stringify([...opened])); } catch (e) {}
+  render();
+}
+
+const js = v => esc(JSON.stringify(v ?? ""));   // a JS string literal, safe inside an HTML attribute
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const when = t => { if (!t) return ""; const d = new Date(t); const now = new Date();
+  const hm = d.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
+  return d.toDateString() === now.toDateString() ? hm : d.toLocaleDateString([], {day: "numeric", month: "short"}) + " " + hm; };
+const stateChip = s => {
+  const cls = {idle: "ok", listening: "warn", processing: "warn", responding: "warn", unavailable: "bad", unknown: "bad"}[s] || "";
+  return `<span class="chip ${cls}">${esc(s)}</span>`; };
+function guess(c) {
+  if (c.person && c.person !== "unknown")
+    return `<span class="chip ok">${esc(c.person)} · ${(+c.score).toFixed(2)}</span>`;
+  return `<span class="chip" title="${esc(c.reason)}">unknown${c.reason ? " · " + esc(c.reason) : ""}</span>`; }
+function race(c) {
+  if (c.race_ms == null) return "";
+  return c.race_ms >= 0 ? `<span class="chip ok" title="Published before the sentence was handled">+${c.race_ms} ms</span>`
+                        : `<span class="chip warn" title="Published after the sentence was handled">${c.race_ms} ms late</span>`; }
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, {headers: {"Content-Type": "application/json"}, ...opts});
+  if (!r.ok) throw new Error(await r.text() || r.statusText);
+  return r.json();
+}
+let flash = null;   // {phrase, until}: a phrase just accepted, shown in green
+async function load() {
+  try {
+    const prev = data && data.enrollment;
+    data = await api("api/state");
+    const e = data.enrollment;
+    if (prev && e && prev.name === e.name) {
+      const fresh = e.steps.find((s, i) => s.file && prev.steps[i] && prev.steps[i].file !== s.file);
+      if (fresh) { flash = {phrase: fresh.phrase, until: Date.now() + 1500}; setTimeout(render, 1550); }
+    }
+    render();
+  }
+  catch (e) { $("#sub").textContent = "Can't reach Voice Hub: " + e.message; }
+}
+
+function play(btn, file) {
+  if (audio) { audio.pause(); if (playing) playing.textContent = "▶"; }
+  if (playing === btn) { playing = null; return; }
+  audio = new Audio("api/audio/" + encodeURIComponent(file));
+  playing = btn; btn.textContent = "■";
+  audio.onended = () => { btn.textContent = "▶"; playing = null; };
+  audio.play();
+}
+
+function render() {
+  const s = data.settings;
+  const modes = [s.capture && "listening to the Assist pipeline", s.wyoming && "Wyoming pass-through",
+                 data.wake && "second-stage wake word"].filter(Boolean);
+  $("#sub").textContent = `${data.people.length} ${data.people.length === 1 ? "person" : "people"} enrolled · ` +
+    (modes.join(" + ") || "no audio source") + (s.collect ? " · saving commands" : "");
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
+  const e = data.enrollment;
+  const banner = e && tab !== "people" ? `<div class="banner" onclick="tab='people';render()">Enrolling ${esc(e.name)}:
+    ${e.done ? "all phrases recorded, open People to save." : `say «${esc(e.steps[e.current].phrase)}» (${e.current + 1}/${e.total})`}</div>` : "";
+  $("#main").innerHTML = banner + {devices: renderDevices, people: renderPeople, commands: renderCommands, wake: renderWakeTab, agent: renderAgent, ring: renderRing}[tab]();
+}
+
+function fmt(x) {
+  const v = x.state, n = Number(v);
+  if (v === "unavailable" || v === "unknown" || v === "") return `<span class="muted">${v ? esc(v) : "–"}</span>`;
+  if (x.entity_id.startsWith("binary_sensor.")) return v === "on" ? "yes" : "no";
+  if (!isFinite(n) || v.trim() === "") return esc(v);
+  if (x.unit === "B") {
+    const u = ["B", "kB", "MB", "GB"]; let i = 0, b = n;
+    while (Math.abs(b) >= 1024 && i < u.length - 1) { b /= 1024; i++; }
+    return `${b.toFixed(i ? 1 : 0)} ${u[i]}`;
+  }
+  const r = Math.abs(n) >= 100 || Number.isInteger(n) ? Math.round(n) : n.toFixed(1);
+  return `${r}${x.unit ? " " + esc(x.unit) : ""}`;
+}
+
+function playClip(btn, name) {
+  if (audio) { audio.pause(); if (playing) playing.textContent = "▶"; }
+  if (playing === btn) { playing = null; return; }
+  audio = new Audio("api/wake/clip/" + encodeURIComponent(name));
+  playing = btn; btn.textContent = "■";
+  audio.onended = () => { btn.textContent = "▶"; playing = null; };
+  audio.play();
+}
+async function setWakeThreshold(v) {
+  try { await api("api/wake/threshold", {method: "POST", body: JSON.stringify({value: +v})}); load(); }
+  catch (e) { alert(e.message); }
+}
+async function setWakeModel(file) {
+  try { await api("api/wake/model", {method: "POST", body: JSON.stringify({file})}); load(); }
+  catch (e) { alert(e.message); load(); }
+}
+async function uploadWakeModel(input) {
+  const f = input.files[0]; if (!f) return;
+  const body = new FormData(); body.append("file", f);
+  try {
+    const r = await fetch("api/wake/models", {method: "POST", body});
+    if (!r.ok) throw new Error(await r.text() || r.statusText);
+    const {added} = await r.json();
+    if (confirm(`${added} added. Use it now?`)) await setWakeModel(added); else load();
+  } catch (e) { alert(e.message); }
+  input.value = "";
+}
+async function removeWakeModel(file) {
+  if (!confirm(`Remove ${file}?`)) return;
+  try { await api("api/wake/models/" + encodeURIComponent(file), {method: "DELETE"}); load(); }
+  catch (e) { alert(e.message); }
+}
+function renderWakeHeader() {
+  const w = data.wake; if (!w) return "";
+  const models = w.models || [];
+  const active = models.find(m => m.active);
+  return `<div class="card"><div class="row"><div class="grow"><div class="name">Second-stage wake word</div>
+    <div class="muted">Checks the wakes a LocalDot sends to Home Assistant, which knows it as «${esc(w.model)}»</div></div>
+    <label class="muted">Threshold <input type="number" min="0.01" max="0.99" step="0.01" value="${w.threshold}"
+      style="width:5em" onchange="setWakeThreshold(this.value)"></label></div>
+    <div class="row" style="margin-top:10px">
+      <label class="muted">Model <select onchange="setWakeModel(this.value)">${models.map(m =>
+        `<option value="${esc(m.file)}"${m.active ? " selected" : ""}>${esc(m.name)}${m.custom ? "" : " (built-in)"}</option>`).join("")}
+      </select></label>
+      ${active && active.custom ? `<button class="btn danger" onclick="removeWakeModel(${js(active.file)})">Remove</button>` : ""}
+      <span class="grow"></span>
+      <button class="btn" onclick="$('#wakeFile').click()">Add a model…</button>
+    </div>
+    <div class="muted" style="margin-top:6px">Any openWakeWord model as <code>.onnx</code> (the ones published next to
+      each <code>.tflite</code>). It takes effect on the next check; Home Assistant's pipelines stay as they are.</div></div>`;
+}
+// ═══ Voice Hub as the pipeline's conversation agent ═══
+async function saveAgent(patch) {
+  const s = {...data.agent.settings, ...patch};
+  try { data.agent.settings = await api("api/agent", {method: "POST", body: JSON.stringify(s)}); render(); }
+  catch (e) { alert(e.message); load(); }
+}
+function agentSelect(value, onchange, withDefault) {
+  const opts = (withDefault ? [`<option value="">Same as the default</option>`] : []).concat(
+    data.agent.agents.filter(a => !/voice[ _]?hub/i.test(a.entity_id + " " + a.name)).map(a =>
+      `<option value="${esc(a.entity_id)}"${a.entity_id === value ? " selected" : ""}>${esc(a.name)}</option>`));
+  return `<select onchange="${onchange}">${opts.join("")}</select>`;
+}
+function setOverride(kind, key, value) {
+  const m = {...data.agent.settings[kind]};
+  if (value) m[key] = value; else delete m[key];
+  saveAgent({[kind]: m});
+}
+function renderAgent() {
+  const a = data.agent;
+  if (!a) return `<div class="card empty">The conversation agent is off (add-on option <code>agent</code>).</div>`;
+  const s = a.settings;
+  const rows = (items, kind) => items.map(([key, label]) => `<div class="stat"><span>${esc(label)}</span>
+    <span>${agentSelect(s[kind][key] || "", `setOverride('${kind}', ${esc(JSON.stringify(key))}, this.value)`, true)}</span></div>`).join("");
+  return `<div class="card"><div class="name">Voice Hub as your conversation agent</div>
+    <div class="muted" style="margin-top:4px">In <b>Settings → Voice assistants</b>, pick <b>Voice Hub</b> as the
+      pipeline's conversation agent. Voice Hub then knows who is speaking <i>before</i> the command runs, publishes it,
+      and passes the command on to the agent chosen here, with the same device (rooms keep working).</div>
+    <div class="row" style="margin-top:12px"><label class="grow">Agent ${agentSelect(s.default, "saveAgent({default: this.value})", false)}</label>
+      <label class="muted"><input type="checkbox" ${s.tell_name ? "checked" : ""} onchange="saveAgent({tell_name: this.checked})">
+        Tell other agents who is speaking</label></div>
+    <div class="muted" style="margin-top:6px">The Home Assistant agent never gets the name in the text: its sentences would stop matching.</div></div>
+  <div class="card"><div class="gtitle">Per satellite</div>${rows(data.devices.map(d => [d.device_id, d.name]), "devices")}</div>
+  <div class="card"><div class="gtitle">Per person (wins over the satellite)</div>${data.people.length
+    ? rows(data.people.map(p => [p.name, p.name]), "people") : `<div class="muted">Nobody enrolled yet.</div>`}</div>
+  <div class="card"><div class="gtitle">Last turns</div>${a.last.length ? a.last.map(t => `<div class="cmd">
+      <span class="muted">${when(t.time * 1000)}</span>
+      <span><span class="text">${esc(t.text || "")}</span> <span class="muted">→ ${esc(t.reply || "")}</span></span>
+      <span class="row actions"><span class="chip ${t.person && t.person !== "unknown" ? "ok" : ""}">${esc(t.person || "?")}</span>
+        <span class="chip" title="${esc(t.agent)}">${esc((a.agents.find(x => x.entity_id === t.agent) || {name: t.agent}).name)}</span>
+        <span class="chip" title="Wait for the voiceprint">${t.waited_ms} ms</span>${t.follow_up ? `<span class="chip warn">follow-up</span>` : ""}</span>
+    </div>`).join("") : `<div class="muted">Nothing yet: once Voice Hub is the pipeline's agent, each command shows here.</div>`}</div>`;
+}
+
+// ═══ Custom wake word on the LocalDot (microWakeWord) ═══
+let onDeviceTarget = null;
+function renderOnDevice() {
+  const devs = (data.devices || []).filter(d => d.ondevice != null);
+  if (!devs.length) return "";
+  const chip = s => s === "none" ? `<span class="chip">Hey Jarvis (built-in)</span>`
+    : `<span class="chip ${s.startsWith("active") ? "ok" : s.startsWith("error") ? "bad" : "warn"}">${esc(s.replace(/^active: /, ""))}</span>`;
+  return `<div class="card"><div class="name">Wake word on the LocalDot</div>
+    <div class="muted" style="margin-top:4px">Upload your own microWakeWord model: the <code>.tflite</code> and <code>.json</code>
+      files from the microWakeWord training. It replaces «Hey Jarvis» on that LocalDot; the baby-cry detector keeps working.</div>
+    ${devs.map(d => `<div class="stat"><span>${esc(d.name)} · ${chip(d.ondevice)}</span>
+      <span class="row actions"><button class="btn" onclick="pickOnDevice(${js(d.device_id)})">Upload model</button>
+      ${d.ondevice.startsWith("active") ? `<button class="btn" onclick="removeOnDevice(${js(d.device_id)}, ${js(d.name)})">Back to Hey Jarvis</button>` : ""}</span></div>`).join("")}
+    <div class="muted" id="onDeviceMsg" style="margin-top:8px"></div></div>`;
+}
+function pickOnDevice(id) { onDeviceTarget = id; $("#onDeviceFile").click(); }
+async function uploadOnDevice(input) {
+  const files = [...input.files]; input.value = "";
+  const model = files.find(f => /\.tflite$/i.test(f.name)), manifest = files.find(f => /\.json$/i.test(f.name));
+  if (!model || !manifest) { alert("Pick both files: the .tflite model and its .json manifest."); return; }
+  const body = new FormData();
+  body.append("device_id", onDeviceTarget); body.append("model", model); body.append("manifest", manifest);
+  const msg = $("#onDeviceMsg"); if (msg) msg.textContent = `Sending ${model.name} to the LocalDot…`;
+  try {
+    const r = await fetch("api/ondevice/upload", {method: "POST", body});
+    if (!r.ok) throw new Error(await r.text() || r.statusText);
+    const {status} = await r.json();
+    if (msg) msg.textContent = `Done: ${status.replace(/^active: /, "«") + "» is now the wake word."}`;
+  } catch (e) { if (msg) msg.textContent = ""; alert(e.message); }
+  load();
+}
+async function removeOnDevice(id, name) {
+  if (!confirm(`Remove the custom wake word from ${name} and go back to «Hey Jarvis»?`)) return;
+  try { await api("api/ondevice/remove", {method: "POST", body: JSON.stringify({device_id: id})}); }
+  catch (e) { alert(e.message); }
+  load();
+}
+
+function renderWakeTab() {
+  if (!data.wake) return renderOnDevice() + `<div class="card empty">The second-stage wake word is off (add-on option <code>wake</code>).</div>`;
+  const sats = Object.keys(data.wake.satellites);
+  return renderOnDevice() + renderWakeHeader() + (sats.length
+    ? sats.map(n => `<div class="card"><div class="name">${esc(n)}</div>${renderWake({name: n})}</div>`).join("")
+    : `<div class="card empty">No LocalDot has asked for a second check yet.</div>`);
+}
+function renderWake(d) {
+  const w = data.wake && data.wake.satellites[d.name]; if (!w) return "";
+  return `<div class="group" style="margin-top:10px"><div class="gtitle">Second stage ·
+      <span class="chip ok">${w.confirmed} confirmed</span> <span class="chip warn">${w.rejected} rejected</span></div>
+    ${w.last.map(s => `<div class="stat"><span>${when(s.time * 1000)} · ${s.detected ? "confirmed" : "rejected"}</span>
+      <span>${(+s.max_score).toFixed(2)}${s.clip ? ` <button class="btn" onclick="playClip(this, '${esc(s.clip)}')">▶</button>` : ""}</span></div>`).join("")}</div>`;
+}
+
+
+// ═══ LED ring designs (LocalDot) ═══
+// One design per occasion, drawn on a top view of the Echo Dot. The board stores
+// it and uses it by itself; «Default» gives the occasion back to the firmware's own animation.
+const RING_OCC = ["listening", "thinking", "replying", "error", "incoming_call", "baby_cry", "alarm"];
+const RING_WORDS = {
+  en: {title: "LED ring", occ: {listening: "Listening", thinking: "Thinking", replying: "Replying", error: "Error",
+       incoming_call: "Incoming call", baby_cry: "Baby crying", alarm: "Smoke / CO alarm"},
+       eff: {solid: "Solid", breathing: "Breathing", rotating: "Rotating"},
+       hint: "Tap LEDs to select them (none selected = all), then pick a colour.",
+       all: "Select all", none: "Clear selection", preview: "Show on the device", save: "Save", reset: "Default",
+       saved: "Saved on the device", custom: "custom", def: "default", none_dev: "No LocalDot with LED ring support. Update its firmware.",
+       effect: "Effect", colour: "Colour", speed: "Speed", live_stop: "Stop showing", live_on: "Showing live on the device"},
+  it: {title: "Anello LED", occ: {listening: "In ascolto", thinking: "Sta pensando", replying: "Risponde", error: "Errore",
+       incoming_call: "Chiamata in arrivo", baby_cry: "Pianto", alarm: "Allarme fumo / CO"},
+       eff: {solid: "Fisso", breathing: "Respiro", rotating: "Rotazione"},
+       hint: "Tocca i LED per selezionarli (nessuno = tutti), poi scegli il colore.",
+       all: "Seleziona tutti", none: "Deseleziona", preview: "Mostra sul dispositivo", save: "Salva", reset: "Di serie",
+       saved: "Salvato sul dispositivo", custom: "personalizzato", def: "di serie", none_dev: "Nessuna LocalDot con l'anello personalizzabile. Aggiorna il firmware.",
+       effect: "Effetto", colour: "Colore", speed: "Velocità", live_stop: "Smetti di mostrare", live_on: "Lo vedi dal vivo sul dispositivo"},
+};
+const rw = () => RING_WORDS[String(data.language || "en").toLowerCase().split(/[-_]/)[0]] || RING_WORDS.en;
+let ringDev = null, ringOcc = "listening", ringSel = new Set(), ringDraft = null, ringMsg = "";
+let ringLive = false, ringLiveTimer = null, ringLiveKeep = null;
+// What the firmware shows when an occasion has no design: Assist's own animations in the
+// colour of the board's «Voice Assistant Ring» light; the other occasions stay dark.
+function ringStock(occ, d) {
+  const c = (d && d.ring && d.ring.stock) || "#ffffff";
+  if (occ === "listening") return {colors: Array(12).fill(c), effect: "breathing", speed: 1};
+  if (occ === "thinking" || occ === "replying") return {colors: Array(12).fill(c), effect: "rotating", speed: 1};
+  return {colors: Array(12).fill("#000000"), effect: "solid", speed: 1};
+}
+function ringDevices() { return data.devices.filter(d => d.ring); }
+function ringLoadDraft() {
+  const d = ringDevices().find(x => x.device_id === ringDev);
+  const saved = d && d.ring.designs[ringOcc];
+  ringDraft = saved ? {colors: [...saved.colors], effect: saved.effect, speed: saved.speed || 1, custom: true}
+                    : {...ringStock(ringOcc, d), custom: false};
+  ringSel = new Set(); ringMsg = "";
+}
+// LED p sits at «hour» (p - 6) mod 12: LED 6 is 12 o'clock, clockwise (as the firmware).
+function ringSvg() {
+  const cx = 160, cy = 160, r0 = 132, r1 = 146, segs = [];
+  for (let p = 0; p < 12; p++) {
+    const hour = (p - 6 + 12) % 12, a0 = (hour * 30 - 13 - 90) * Math.PI / 180, a1 = (hour * 30 + 13 - 90) * Math.PI / 180;
+    const pt = (r, a) => `${(cx + r * Math.cos(a)).toFixed(1)} ${(cy + r * Math.sin(a)).toFixed(1)}`;
+    const d = `M ${pt(r1, a0)} A ${r1} ${r1} 0 0 1 ${pt(r1, a1)} L ${pt(r0, a1)} A ${r0} ${r0} 0 0 0 ${pt(r0, a0)} Z`;
+    segs.push(`<path class="led${ringSel.has(p) ? " sel" : ""}" d="${d}" fill="${ringDraft.colors[p]}" onclick="ringToggle(${p})"><title>LED ${p}</title></path>`);
+  }
+  const fx = ringDraft.effect === "rotating" ? "spin" : ringDraft.effect === "breathing" ? "breathe" : "";
+  const dur = fx ? `animation-duration:${((fx === "spin" ? 1.8 : 1.5) / (ringDraft.speed || 1)).toFixed(2)}s` : "";
+  const btn = (x, y, g) => `<g transform="translate(${x} ${y})"><circle r="17" fill="#2a2d33"/>${g}</g>`;
+  const ico = "stroke:#9aa1ad;stroke-width:3;stroke-linecap:round;fill:none";
+  return `<svg class="ringsvg" viewBox="0 0 320 320" role="img" aria-label="${esc(rw().title)}">
+    <circle cx="160" cy="160" r="156" fill="#3a3d42"/>
+    <circle cx="160" cy="160" r="150" fill="#202226"/>
+    <g class="${fx}" style="${dur}">${segs.join("")}</g>
+    <circle cx="160" cy="160" r="126" fill="#16181b"/>
+    ${btn(160, 92, `<path d="M-7 0h14M0 -7v14" style="${ico}"/>`)}
+    ${btn(160, 228, `<path d="M-7 0h14" style="${ico}"/>`)}
+    ${btn(92, 160, `<circle r="4" fill="#9aa1ad"/>`)}
+    ${btn(228, 160, `<path d="M-4 -7v6a4 4 0 0 0 8 0v-6a4 4 0 0 0 -8 0M-8 0a8 8 0 0 0 16 0M0 8v4M-9 -9l18 18" style="${ico}"/>`)}
+  </svg>`;
+}
+function renderRing() {
+  const W = rw(), devs = ringDevices();
+  if (!devs.length) return `<div class="card muted">${esc(W.none_dev)}</div>`;
+  if (!devs.some(d => d.device_id === ringDev)) { ringDev = devs[0].device_id; ringDraft = null; }
+  if (!ringDraft) ringLoadDraft();
+  const d = devs.find(x => x.device_id === ringDev);
+  const devBtns = devs.map(x => `<button class="btn${x.device_id === ringDev ? " on" : ""}" onclick='ringPickDev(${js(x.device_id)})'>${esc(x.name)}</button>`).join("");
+  const occBtns = RING_OCC.map(o => `<button class="btn${o === ringOcc ? " on" : ""}" onclick='ringPickOcc(${js(o)})'>${esc(W.occ[o])}${d.ring.designs[o] ? " ●" : ""}</button>`).join("");
+  const sw = ["#ffffff", "#ff3b30", "#ff9500", "#ffcc00", "#34c759", "#00e5ff", "#00b3ff", "#5856d6", "#af52de", "#ff2d55", "#000000"]
+    .map(c => `<button class="swatch" style="background:${c}" title="${c}" onclick='ringColour(${js(c)})'></button>`).join("");
+  const effs = ["solid", "breathing", "rotating"].map(e => `<option value="${e}"${e === ringDraft.effect ? " selected" : ""}>${esc(W.eff[e])}</option>`).join("");
+  return `<div class="devs">${devBtns}</div>
+  <div class="card"><div class="occs">${occBtns}</div></div>
+  <div class="card"><div class="ringwrap">${ringSvg()}
+    <div class="ringside">
+      <div class="row"><span class="name">${esc(W.occ[ringOcc])}</span>
+        <span class="chip ${ringDraft.custom ? "ok" : ""}">${esc(ringDraft.custom ? W.custom : W.def)}</span></div>
+      <div class="muted">${esc(W.hint)}</div>
+      <div class="swatches">${sw}<label class="muted">${esc(W.colour)} <input type="color" id="ringPick" value="${ringDraft.colors[[...ringSel][0] ?? 0]}" onchange="ringColour(this.value)"></label></div>
+      <div class="row"><button class="btn" onclick="ringAll(true)">${esc(W.all)}</button><button class="btn" onclick="ringAll(false)">${esc(W.none)}</button></div>
+      <label class="row muted">${esc(W.effect)} <select id="ringEff" onchange="ringDraft.effect=this.value;ringChanged()">${effs}</select></label>
+      ${ringDraft.effect !== "solid" ? `<label class="row muted">${esc(W.speed)}
+        <input type="range" min="-2" max="2" step="0.25" value="${Math.log2(ringDraft.speed || 1)}" oninput="ringSpeed(this.value)" style="flex:1">
+        <span id="ringSpeedVal">${(ringDraft.speed || 1).toFixed(2).replace(/\.?0+$/, "")}×</span></label>` : ""}
+      <div class="row"><button class="btn${ringLive ? " on" : ""}" onclick="ringLiveToggle()">${esc(ringLive ? W.live_stop : W.preview)}</button>
+        <button class="btn primary" onclick="ringSend('save')">${esc(W.save)}</button>
+        <button class="btn" onclick="ringSend('reset')">${esc(W.reset)}</button></div>
+      ${ringLive ? `<div class="muted">${esc(W.live_on)}</div>` : ""}
+      ${ringMsg ? `<div class="muted">${esc(ringMsg)}</div>` : ""}
+    </div></div></div>`;
+}
+function ringPickDev(id) { if (ringLive) ringLiveToggle(); ringDev = id; ringDraft = null; render(); }
+function ringPickOcc(o) { ringOcc = o; ringDraft = null; render(); ringChanged(); }
+// Live preview: every change goes to the device (debounced) and is renewed while the page is open.
+function ringChanged() { render(); if (!ringLive) return; clearTimeout(ringLiveTimer); ringLiveTimer = setTimeout(ringLiveSend, 150); }
+function ringSpeed(v) { ringDraft.speed = Math.pow(2, +v); const l = $("#ringSpeedVal"); if (l) l.textContent = ringDraft.speed.toFixed(2).replace(/\.?0+$/, "") + "×";
+  const g = $(".ringsvg g.spin, .ringsvg g.breathe"); if (g) g.style.animationDuration = ((ringDraft.effect === "rotating" ? 1.8 : 1.5) / ringDraft.speed).toFixed(2) + "s";
+  if (ringLive) { clearTimeout(ringLiveTimer); ringLiveTimer = setTimeout(ringLiveSend, 150); } }
+async function ringLiveSend() {
+  if (!ringLive || !ringDraft) return;
+  try { await api("api/ring/preview", {method: "POST", body: JSON.stringify({device_id: ringDev, occasion: ringOcc,
+          colors: ringDraft.colors, effect: ringDraft.effect, speed: ringDraft.speed || 1, seconds: 30})}); }
+  catch (e) { ringMsg = e.message; render(); }
+}
+async function ringLiveToggle() {
+  ringLive = !ringLive;
+  clearInterval(ringLiveKeep); clearTimeout(ringLiveTimer);
+  if (ringLive) { ringLiveSend(); ringLiveKeep = setInterval(ringLiveSend, 20000); }
+  else { try { await api("api/ring/stop", {method: "POST", body: JSON.stringify({device_id: ringDev})}); } catch (e) {} }
+  render();
+}
+window.addEventListener("pagehide", () => { if (ringLive) fetch("api/ring/stop", {method: "POST", keepalive: true,
+  headers: {"Content-Type": "application/json"}, body: JSON.stringify({device_id: ringDev})}); });
+function ringToggle(p) { ringSel.has(p) ? ringSel.delete(p) : ringSel.add(p); render(); }
+function ringAll(on) { ringSel = on ? new Set([...Array(12).keys()]) : new Set(); render(); }
+function ringColour(c) {
+  const target = ringSel.size ? [...ringSel] : [...Array(12).keys()];
+  target.forEach(p => ringDraft.colors[p] = c);
+  ringChanged();
+}
+async function ringSend(what) {
+  const body = {device_id: ringDev, occasion: ringOcc, colors: ringDraft.colors, effect: ringDraft.effect, speed: ringDraft.speed || 1};
+  try {
+    await api("api/ring/" + what, {method: "POST", body: JSON.stringify(body)});
+    if (what !== "preview") { await load(); ringDraft = null; if (ringLive) { ringLoadDraft(); ringLiveSend(); } }
+    if (what === "save") ringMsg = rw().saved;
+  } catch (e) { ringMsg = e.message; }
+  render();
+}
+
+// ═══ Call a LocalDot from this phone (VoIP Stack) ═══
+// Labels follow Home Assistant's configured language; English otherwise.
+const WORDS = {
+  en: {call: "Call", online: "Online", offline: "Offline", in_call: "In call"},
+  it: {call: "Chiama", online: "Online", offline: "Offline", in_call: "In chiamata"},
+  de: {call: "Anrufen", online: "Online", offline: "Offline", in_call: "Im Gespräch"},
+  fr: {call: "Appeler", online: "En ligne", offline: "Hors ligne", in_call: "En appel"},
+  es: {call: "Llamar", online: "En línea", offline: "Sin conexión", in_call: "En llamada"},
+  pt: {call: "Ligar", online: "Online", offline: "Offline", in_call: "Em chamada"},
+  nl: {call: "Bellen", online: "Online", offline: "Offline", in_call: "In gesprek"},
+  pl: {call: "Zadzwoń", online: "Online", offline: "Offline", in_call: "W rozmowie"},
+  sv: {call: "Ring", online: "Online", offline: "Offline", in_call: "I samtal"},
+  da: {call: "Ring op", online: "Online", offline: "Offline", in_call: "I opkald"},
+  nb: {call: "Ring", online: "Tilkoblet", offline: "Frakoblet", in_call: "I samtale"},
+};
+const word = k => (WORDS[String(data.language || "en").toLowerCase().split(/[-_]/)[0]] || WORDS.en)[k];
+
+// The phone is VoIP Stack's own Lovelace card (its browser phone), opened over
+// the Home Assistant page this one is embedded in (same origin under ingress),
+// with the destination preselected. Its module is imported at the version Home
+// Assistant already serves, so the card shares the one call engine.
+function haFrame() {
+  try {
+    const P = window.parent, ha = P !== window && P.document.querySelector("home-assistant");
+    return ha && ha.hass ? {P, ha} : null;
+  } catch (e) { return null; }
+}
+async function loadVoipCard(P) {
+  if (P.customElements.get("voip-stack-card")) return;
+  const html = await (await fetch("/", {credentials: "same-origin"})).text();
+  const m = html.match(/\/voip-stack\/voip-stack-menu\.js\?v=([^"'\s<>]+)/);
+  if (!m) throw new Error("VoIP Stack is not loaded in Home Assistant.");
+  await new Promise((ok, fail) => {
+    const s = P.document.createElement("script");
+    s.type = "module";
+    P.__voiceHubVoip = {ok, fail};
+    s.textContent = `import("/voip-stack/voip-stack-card.js?v=${m[1]}")
+      .then(() => window.__voiceHubVoip.ok(), e => window.__voiceHubVoip.fail(e));`;
+    P.document.head.append(s);
+  });
+  await P.customElements.whenDefined("voip-stack-card");
+}
+async function callDot(btn, target) {
+  const f = haFrame();
+  if (!f) { alert("Open Voice Hub from the Home Assistant sidebar to place a call."); return; }
+  const {P, ha} = f;
+  btn.disabled = true;
+  try {
+    const r = await ha.hass.callWS({type: "voip_stack/list_devices"});
+    const phone = (r.devices || []).find(p => p.endpoint_type === "browser");
+    if (!phone) throw new Error("VoIP Stack has no browser phone in Home Assistant.");
+    await loadVoipCard(P);
+    try { P.localStorage.setItem(`voip_softphone_target_${phone.device_id}`, target); } catch (e) {}
+    openPhone(P, ha, phone.device_id, target);
+  } catch (e) { alert(e.message || String(e)); }
+  finally { btn.disabled = false; }
+}
+function openPhone(P, ha, phoneId, target) {
+  const doc = P.document;
+  doc.getElementById("voice-hub-phone")?.remove();
+  const back = doc.createElement("div");
+  back.id = "voice-hub-phone";
+  back.style.cssText = "position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.45);display:flex;" +
+    "align-items:center;justify-content:center;padding:16px";
+  const box = doc.createElement("div");
+  box.style.cssText = "width:min(440px,100%);max-height:100%;overflow:auto;position:relative";
+  const close = doc.createElement("button");
+  close.textContent = "✕";
+  close.style.cssText = "position:absolute;top:6px;right:6px;z-index:1;border:0;background:none;font-size:20px;" +
+    "cursor:pointer;color:var(--primary-text-color)";
+  const card = doc.createElement("voip-stack-card");
+  card.setConfig({type: "custom:voip-stack-card", mode: "ha_softphone", device_id: phoneId});
+  card.hass = ha.hass;
+  box.append(card, close); back.append(box); doc.body.append(back);
+  // The card wants every new hass object; the page re-renders each state change.
+  const feed = P.setInterval(() => { if (card.hass !== ha.hass) card.hass = ha.hass; }, 500);
+  // Never close in the middle of a call: the overlay would drop the call's audio.
+  const shut = () => { if (card.callActive) return; P.clearInterval(feed); back.remove(); };
+  close.onclick = shut;
+  back.addEventListener("click", e => { if (e.target === back) shut(); });
+  // Start at once when the card is ready with this destination; otherwise its
+  // own call button stays there to press.
+  const t0 = Date.now();
+  const go = P.setInterval(() => {
+    const ready = card._softphoneStateLoaded && card._getSoftphoneTargetDevice?.()?.device_id === target;
+    if (ready && typeof card._startCall === "function") { P.clearInterval(go); card._startCall(); }
+    else if (Date.now() - t0 > 6000 || !back.isConnected) P.clearInterval(go);
+  }, 200);
+}
+function dotStatus(d) {
+  const on = `<span class="chip ${d.online ? "ok" : "bad"}">${esc(word(d.online ? "online" : "offline"))}</span>`;
+  const call = d.voip_state && d.online && d.voip_state !== "in_call"
+    ? ` <button class="btn call" onclick="callDot(this, ${js(d.device_id)})">${esc(word("call"))}</button>` : "";
+  const busy = d.voip_state === "in_call" ? ` <span class="chip warn">${esc(word("in_call"))}</span>` : "";
+  return on + call + busy;
+}
+
+function renderDevices() {
+  if (!data.devices.length) return `<div class="card empty">No Assist satellites found.</div>`;
+  return data.devices.map(d => {
+    const c = d.last_command, open = opened.has(d.device_id);
+    const head = `<div class="row devhead" onclick="if (!event.target.closest('button')) toggleDev(${js(d.device_id)})">
+        <span class="chev">${open ? "▾" : "▸"}</span>
+        <div class="grow"><span class="name">${esc(d.name)}</span> ${dotStatus(d)}</div>${stateChip(d.state)}</div>`;
+    if (!open) return `<div class="card">${head}</div>`;
+    return `<div class="card">${head}
+      <div class="muted" style="margin-top:4px">${esc(d.pipeline || "")}</div>
+      ${c ? `<div class="row" style="margin-top:10px"><span class="muted">Last command ${when(c.time)}</span>
+        <span class="grow">${esc(c.text || "…")}</span>${guess(c)}${race(c)}</div>`
+          : `<div class="muted" style="margin-top:10px">No command heard since the add-on started.</div>`}
+      ${d.groups.length ? `<div class="groups">${d.groups.map(g => `<div class="group">
+        <div class="gtitle">${esc(g.title)}</div>
+        ${g.entities.map(x => `<div class="stat"><span title="${esc(x.entity_id)}">${esc(x.name)}</span>
+          <span>${fmt(x)}</span></div>`).join("")}</div>`).join("")}</div>`
+        : `<div class="muted" style="margin-top:10px">This satellite exposes no statistics to Home Assistant.</div>`}
+    </div>`; }).join("");
+}
+
+function renderPeople() {
+  const e = data.enrollment;
+  const add = `<div class="row" style="margin-bottom:12px"><div class="grow muted">Each person is recognised from
+    commands they say to your satellites.</div>
+    <button class="btn primary" onclick="openStart()" ${e ? "disabled" : ""}>＋ Add person</button></div>`;
+  const list = data.people.length ? data.people.map(p => `<div class="card">
+    <div class="row"><div class="grow"><div class="name">${esc(p.name)}</div>
+      <div class="muted">${p.count} voice sample${p.count === 1 ? "" : "s"}${p.count < 10 ? " · 10–15 give reliable results" : ""}</div></div>
+      <button class="btn" onclick="openStart(${js(p.name)})" ${e ? "disabled" : ""}>Add samples</button>
+      <button class="btn danger" onclick="removePerson(${js(p.name)})">Remove</button></div>
+    <details><summary>Samples</summary>${p.sources.map(f => `<div class="pick">
+      <button class="play" ${f && hasFile(f) ? "" : "disabled"} onclick="play(this,${js(f)})">▶</button>
+      <span class="grow muted">${esc(textOf(f) || f || "(enrolled from a file)")}</span>
+      <button class="icon" title="Remove this sample" onclick="removeSample(${js(p.name)},${js(f)})">✕</button></div>`).join("")}
+    </details></div>`).join("") : `<div class="card empty">Nobody enrolled yet.</div>`;
+  return (e ? renderGuide(e) : add) + list;
+}
+
+function renderGuide(e) {
+  const got = e.steps.filter(s => s.file).length;
+  const cur = e.steps[e.current];
+  const dev = data.devices.filter(d => !e.device_id || d.device_id === e.device_id);
+  const listening = dev.some(d => d.state === "listening");
+  let body;
+  if (flash && Date.now() < flash.until) {
+    body = `<div class="say ok">✓ ${esc(flash.phrase)}</div><div class="hint">Got it.</div>`;
+  } else if (e.done) {
+    body = `<div class="say ok">✓ All ${e.total} phrases recorded</div>
+      <div class="hint">Listen to a few of them below, then save.</div>`;
+  } else {
+    const status = cur.checking ? "Checking what was heard…"
+      : listening ? "Listening…" : `Say the wake word to ${esc(e.device_name)}, then the phrase.`;
+    body = `<div class="say">${esc(cur.phrase)}</div>
+      <div class="hint">${esc(cur.hint)}</div>
+      ${cur.rejected && !cur.checking ? `<div class="reject">Not this one: ${esc(cur.rejected)}. Say it again.</div>` : ""}
+      <div class="wait ${listening || cur.checking ? "live" : ""}">${status}</div>`;
+  }
+  const shown = e.done ? e.total : Math.min(e.current + 1, e.total);
+  return `<div class="card guide">
+    <div class="row"><div class="grow"><div class="name">Enrolling ${esc(e.name)}</div>
+      <div class="muted">${got} recorded · on ${esc(e.device_name)}</div></div>
+      <div class="counter">${shown}<span>/${e.total}</span></div></div>
+    <div class="bar"><div style="width:${Math.round(100 * got / e.total)}%"></div></div>
+    ${body}
+    <div class="row" style="margin-top:16px">
+      ${e.done ? "" : `<button class="btn" onclick="guided('skip')">Skip this phrase</button>`}
+      <span class="grow"></span>
+      <button class="btn" onclick="guidedCancel()">Cancel</button>
+      <button class="btn primary" onclick="guidedSave()" ${got && !saving ? "" : "disabled"}>${saving ? `Saving ${got} samples…` : "Save" + (e.done ? "" : " now")}</button></div>
+    <details ${e.done ? "open" : ""}><summary>All phrases (${got} recorded)</summary>
+    <div class="steps">${e.steps.map((s, i) => `<div class="step ${i === e.current && !e.done ? "cur" : ""}">
+      <span class="n ${s.file ? "ok" : ""}">${s.file ? "✓" : i + 1}</span>
+      <button class="play" ${s.file ? "" : "disabled"} onclick="play(this,${js(s.file)})">▶</button>
+      <span>${esc(s.phrase)}${s.file ? `<br><span class="heard">heard: ${esc(s.text || "…")} · ${(+s.duration_s || 0).toFixed(1)} s</span>`
+        : s.skipped ? `<br><span class="heard">skipped</span>` : ""}</span>
+      ${s.file || s.skipped ? `<button class="btn" onclick="guided('goto',{index:${i}})">Redo</button>` : "<span></span>"}
+    </div>`).join("")}</div></details>
+  </div>`;
+}
+
+function openStart(name = "") {
+  $("#startTitle").textContent = name ? `Add samples to ${name}` : "Add person";
+  $("#startName").value = name; $("#startName").readOnly = !!name;
+  $("#startDev").innerHTML = data.devices.map(d => `<option value="${esc(d.device_id)}">${esc(d.name)}</option>`).join("")
+    + `<option value="">Any satellite</option>`;
+  const enrolled = new Set(data.people.flatMap(p => p.sources));
+  const saved = data.recent.filter(c => c.file && !enrolled.has(c.file)).length;
+  $("#pickLink").innerHTML = saved ? `Or <a href="#" onclick="event.preventDefault();$('#start').close();openEnroll(${js(name)})">pick
+    from ${saved} saved command${saved === 1 ? "" : "s"}</a> instead.` : "";
+  $("#start").showModal();
+  if (!name) $("#startName").focus();
+}
+$("#startGo").onclick = async () => {
+  const name = $("#startName").value.trim();
+  if (!name) { $("#startName").focus(); return; }
+  try {
+    await api("api/enroll/start", {method: "POST", body: JSON.stringify({name, device_id: $("#startDev").value})});
+    $("#start").close(); tab = "people"; await load();
+  } catch (e) { alert(e.message); }
+};
+async function guided(action, body = {}) {
+  await api("api/enroll/" + action, {method: "POST", body: JSON.stringify(body)}); load();
+}
+async function guidedCancel() {
+  if (!confirm("Stop this enrollment? Samples recorded so far are not saved.")) return;
+  guided("cancel");
+}
+let saving = false;   // computing voiceprints takes ~1 s per sample: one Save at a time
+async function guidedSave() {
+  if (saving) return;
+  saving = true; render();
+  try {
+    const r = await api("api/enroll/save", {method: "POST", body: "{}"});
+    if (r.skipped.length) alert(`${r.skipped.length} sample(s) were too short and were skipped.`);
+  } catch (e) { alert(e.message); }
+  saving = false; load();
+}
+
+const hasFile = f => data.recent.some(c => c.file === f);
+const textOf = f => (data.recent.find(c => c.file === f) || {}).text;
+
+function renderCommands() {
+  if (!data.recent.length) return `<div class="card empty">No commands yet. Say the wake word and a command to a satellite.</div>`;
+  return `<div class="card">` + data.recent.map(c => `<div class="cmd">
+    <button class="play" ${c.file ? "" : "disabled"} title="${c.file ? "Play" : "Not saved"}"
+      onclick="play(this,${js(c.file)})">▶</button>
+    <div style="min-width:0"><div class="text">${esc(c.text || (c.text === null ? "(no transcript)" : "…"))}</div>
+      <div class="muted">${when(c.time)} · ${esc(c.device_name || "")} · ${(+c.duration_s || 0).toFixed(1)} s</div></div>
+    <div class="row actions">${guess(c)}${race(c)}
+      ${c.file ? `<button class="icon" title="Delete recording" onclick="deleteRec(${js(c.file)})">🗑</button>` : ""}</div>
+  </div>`).join("") + `</div>`;
+}
+
+function openEnroll(name = "") {
+  const enrolled = new Set(data.people.flatMap(p => p.sources));
+  const items = data.recent.filter(c => c.file && !enrolled.has(c.file));
+  $("#dlgTitle").textContent = name ? `Add samples to ${name}` : "Add person";
+  $("#dlgName").value = name; $("#dlgName").readOnly = !!name;
+  $("#peopleNames").innerHTML = data.people.map(p => `<option value="${esc(p.name)}">`).join("");
+  $("#dlgList").innerHTML = items.length ? items.map(c => `<label class="pick">
+      <input type="checkbox" value="${esc(c.file)}">
+      <button type="button" class="play" onclick="event.preventDefault();play(this,${js(c.file)})">▶</button>
+      <span class="grow"><span>${esc(c.text || "(no transcript)")}</span><br>
+        <span class="muted">${when(c.time)} · ${esc(c.device_name || "")} · ${(+c.duration_s || 0).toFixed(1)} s</span></span>
+      ${guess(c)}</label>`).join("")
+    : `<div class="empty">No saved commands left to pick. Speak a few commands to a satellite first.</div>`;
+  const count = () => { const n = $("#dlgList").querySelectorAll("input:checked").length;
+    $("#dlgCount").textContent = n ? `${n} selected` : ""; $("#dlgSave").disabled = !n; };
+  $("#dlgList").onchange = count; count();
+  $("#dlg").showModal();
+}
+$("#dlgCancel").onclick = () => { if (audio) audio.pause(); $("#dlg").close(); };
+$("#dlgSave").onclick = async () => {
+  const name = $("#dlgName").value.trim();
+  const files = [...$("#dlgList").querySelectorAll("input:checked")].map(i => i.value);
+  if (!name) { $("#dlgName").focus(); return; }
+  $("#dlgSave").disabled = true; $("#dlgSave").textContent = "Saving…";
+  try {
+    const r = await api("api/people", {method: "POST", body: JSON.stringify({name, files})});
+    if (r.skipped.length) alert(`${r.skipped.length} recording(s) were too short and were skipped.`);
+    if (audio) audio.pause();
+    $("#dlg").close(); tab = "people"; await load();
+  } catch (e) { alert(e.message); $("#dlgSave").disabled = false; }
+  $("#dlgSave").textContent = "Save";
+};
+async function removePerson(name) {
+  if (!confirm(`Remove ${name}? Their voice samples are deleted; the recordings stay.`)) return;
+  await api("api/people/" + encodeURIComponent(name), {method: "DELETE"}); load();
+}
+async function removeSample(name, file) {
+  await api(`api/people/${encodeURIComponent(name)}/remove`, {method: "POST", body: JSON.stringify({file})}); load();
+}
+async function deleteRec(file) {
+  if (!confirm("Delete this recording? A voice sample made from it stays until you remove it.")) return;
+  await api("api/recordings/" + encodeURIComponent(file), {method: "DELETE"}); load();
+}
+
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  tab = b.dataset.tab; try { localStorage.setItem("vh-tab", tab); } catch (e) {} render(); });
+load();
+let lastPoll = 0;
+setInterval(() => {
+  const fast = data && data.enrollment && !data.enrollment.done;
+  // Not while a menu or a field of the page is in use: the redraw would close it.
+  const busy = document.activeElement && document.activeElement.closest("#main") &&
+               ["SELECT", "INPUT"].includes(document.activeElement.tagName);
+  if (Date.now() - lastPoll < (fast ? 700 : 5000) || $("#dlg").open || $("#start").open || playing || saving || busy) return;
+  lastPoll = Date.now(); load();
+}, 500);
+</script>
+</body>
+</html>
